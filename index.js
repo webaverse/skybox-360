@@ -239,5 +239,8 @@ export default () => {
 
   });
   app.add(o);
+  
+  app.setComponent('renderPriority', 'low');
+  
   return app;
 };
