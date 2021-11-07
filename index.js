@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import metaversefile from 'metaversefile';
-const {useApp, useFrame, useInternals, useWorld} = metaversefile;
+const {useApp, useFrame, useCleanup, useInternals, useWorld} = metaversefile;
 
 export default () => {
   const app = useApp();
@@ -11,7 +11,8 @@ export default () => {
   let _phi = 150;
   let _theta = 13;
   let _dayPassSpeed = 0.01;
-  let sunObj = null;
+  let sunObj = new THREE.DirectionalLight(0xFFFFFF, 2);
+  worldLights.add(sunObj);
 
   const sphereGeometry = new THREE.SphereBufferGeometry(300)
     .applyMatrix4(
@@ -204,7 +205,8 @@ export default () => {
         #if defined( TONE_MAPPING )
           gl_FragColor.rgb = toneMapping( gl_FragColor.rgb );
         #endif
-      } `
+      } `,
+      // depthWrite: false,
   });
   const o = new THREE.Mesh(sphereGeometry, material);
   const startTime = Date.now();
@@ -212,33 +214,21 @@ export default () => {
     const now = Date.now();
   
     const sunDistance = 100;
+    sunObj.position.x = sunDistance * Math.sin(_theta * Math.PI / 180) * Math.cos(_phi * Math.PI / 180);
+    sunObj.position.y = sunDistance * Math.sin(_phi * Math.PI / 180);
+    sunObj.position.z = sunDistance * Math.cos(_theta * Math.PI / 180) * Math.cos(_phi * Math.PI / 180);
 
-    if(!sunObj) {
-      for (let i = 0; i < worldLights.children.length; i++) {
-        if(worldLights.children[i].type === "DirectionalLight") {
-          sunObj = worldLights.children[i];
-        }
-      } 
-    }
-
-
-    let sunLight = sunObj;
-    app.position.x = sunDistance * Math.sin(_theta * Math.PI / 180) * Math.cos(_phi * Math.PI / 180);
-    app.position.y = sunDistance * Math.sin(_phi * Math.PI / 180);
-    app.position.z = sunDistance * Math.cos(_theta * Math.PI / 180) * Math.cos(_phi * Math.PI / 180);
-
-    material.uniforms.sunPosition.value.copy(app.position);
+    material.uniforms.sunPosition.value.copy(sunObj.position);
     material.uniforms.cameraPos.value.copy(camera.position);
     
-    if(sunObj){
-      _theta += _dayPassSpeed;
-      //_phi += _dayPassSpeed; // For day-night cycle
-
-      sunLight.position.copy(app.position);
-    }
-
+    _theta += _dayPassSpeed;
+    // _phi += _dayPassSpeed; // For day-night cycle
   });
   app.add(o);
+  
+  useCleanup(() => {
+    worldLights.remove(sunObj);
+  });
   
   app.setComponent('renderPriority', 'low');
   
