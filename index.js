@@ -216,8 +216,7 @@ export default () => {
     if (!sunObj) {
       for (const app of world.getApps()) {
         if (app.appType === 'light' && app.light?.light?.type === 'DirectionalLight') {
-          sunObj = app;
-          console.log('found', sunObj);
+          sunObj = app.light;
         }
       } 
     }
