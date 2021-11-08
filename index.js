@@ -213,16 +213,15 @@ export default () => {
   
     const sunDistance = 100;
 
-    if(!sunObj) {
-      for (let i = 0; i < worldLights.children.length; i++) {
-        if(worldLights.children[i].type === "DirectionalLight") {
-          sunObj = worldLights.children[i];
+    if (!sunObj) {
+      for (const app of world.getApps()) {
+        if (app.appType === 'light' && app.light?.light?.type === 'DirectionalLight') {
+          sunObj = app;
+          console.log('found', sunObj);
         }
       } 
     }
 
-
-    let sunLight = sunObj;
     app.position.x = sunDistance * Math.sin(_theta * Math.PI / 180) * Math.cos(_phi * Math.PI / 180);
     app.position.y = sunDistance * Math.sin(_phi * Math.PI / 180);
     app.position.z = sunDistance * Math.cos(_theta * Math.PI / 180) * Math.cos(_phi * Math.PI / 180);
@@ -234,7 +233,7 @@ export default () => {
       _theta += _dayPassSpeed;
       //_phi += _dayPassSpeed; // For day-night cycle
 
-      sunLight.position.copy(app.position);
+      sunObj.position.copy(app.position);
     }
 
   });
