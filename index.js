@@ -29,6 +29,7 @@ export default () => {
       cameraPos: {value: new THREE.Vector3(0, 10, 0)}
     },
     vertexShader: `
+      ${THREE.ShaderChunk.common}
       uniform vec3 sunPosition;
       uniform float rayleigh;
       uniform float turbidity;
@@ -40,6 +41,8 @@ export default () => {
       varying vec3 vBetaR;
       varying vec3 vBetaM;
       varying float vSunE;
+
+      ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
   
       const vec3 up = vec3( 0.0, 1.0, 0.0 );
   
@@ -97,6 +100,8 @@ export default () => {
   
       // mie coefficients
         vBetaM = totalMie( turbidity ) * mieCoefficient;
+
+        ${THREE.ShaderChunk.logdepthbuf_vertex}
   
       }
     `,
@@ -113,6 +118,8 @@ export default () => {
       uniform float luminance;
       uniform float mieDirectionalG;
       uniform vec3 cameraPos;
+      
+      ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
   
       // constants for atmospheric scattering
       const float pi = 3.141592653589793238462643383279502884197169;
@@ -204,6 +211,8 @@ export default () => {
         #if defined( TONE_MAPPING )
           gl_FragColor.rgb = toneMapping( gl_FragColor.rgb );
         #endif
+
+        ${THREE.ShaderChunk.logdepthbuf_fragment}
       } `
   });
   const o = new THREE.Mesh(sphereGeometry, material);
