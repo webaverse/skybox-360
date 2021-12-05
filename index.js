@@ -236,12 +236,13 @@ export default () => {
 
     material.uniforms.sunPosition.value.copy(app.position);
     material.uniforms.cameraPos.value.copy(camera.position);
-    
+    app.updateMatrixWorld();
     if(sunObj){
       _theta += _dayPassSpeed;
       //_phi += _dayPassSpeed; // For day-night cycle
-
+      
       sunObj.position.copy(app.position);
+      sunObj.updateMatrixWorld();
     }
 
   });
