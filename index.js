@@ -216,7 +216,7 @@ export default () => {
       } `
   });
   const o = new THREE.Mesh(sphereGeometry, material);
-  const startTime = Date.now();
+  // const startTime = Date.now();
   useFrame(() => {
     const now = Date.now();
   
