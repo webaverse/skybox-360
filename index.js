@@ -11,7 +11,7 @@ export default () => {
   let _phi = 150;
   let _theta = 13;
   let _dayPassSpeed = 0.01;
-  let sunObj = null;
+  let sunObjLightTracker = null;
 
   const sphereGeometry = new THREE.SphereBufferGeometry(300)
     .applyMatrix4(
@@ -222,10 +222,10 @@ export default () => {
   
     const sunDistance = 100;
 
-    if (!sunObj) {
+    if (!sunObjLightTracker) {
       for (const app of world.getApps()) {
         if (app.appType === 'light' && app.light?.light?.type === 'DirectionalLight') {
-          sunObj = app.light;
+          sunObjLightTracker = app.light;
         }
       } 
     }
@@ -236,13 +236,13 @@ export default () => {
 
     material.uniforms.sunPosition.value.copy(app.position);
     material.uniforms.cameraPos.value.copy(camera.position);
-    app.updateMatrixWorld();
-    if(sunObj){
+    
+    if (sunObjLightTracker) {
       _theta += _dayPassSpeed;
       //_phi += _dayPassSpeed; // For day-night cycle
-      
-      sunObj.position.copy(app.position);
-      sunObj.updateMatrixWorld();
+
+      sunObjLightTracker.position.copy(app.position);
+      sunObjLightTracker.updateMatrixWorld();
     }
 
   });
