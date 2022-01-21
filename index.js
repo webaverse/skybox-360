@@ -226,7 +226,7 @@ export default () => {
         float StarVal = StableStarField( vSamplePos, StarFieldThreshhold );
         vColor += vec3( StarVal );
 
-        vColor *= min(max(fragCoord.y + 0.1, 0.), 1.);
+        vColor *= min(max(fragCoord.y, 0.), 1.);
         
         fragColor = vColor;
       }
