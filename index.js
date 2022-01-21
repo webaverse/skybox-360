@@ -10,7 +10,7 @@ export default () => {
 
   let _phi = 150;
   let _theta = 13;
-  let _dayPassSpeed = 0.01;
+  let _dayPassSpeed = 0.1;
   let sunObjLightTracker = null;
 
   const sphereGeometry = new THREE.SphereBufferGeometry(300)
@@ -24,12 +24,11 @@ export default () => {
       turbidity: {value: 2},
       rayleigh: {value: 0.6},
       mieCoefficient: {value: 0.005},
-      mieDirectionalG: {value: 0.065},
+      mieDirectionalG: {value: 0.65},
       sunPosition: {value: new THREE.Vector3(0, 100, 0)},
       cameraPos: {value: new THREE.Vector3(0, 10, 0)}
     },
-    vertexShader: `
-      ${THREE.ShaderChunk.common}
+    vertexShader: `\
       uniform vec3 sunPosition;
       uniform float rayleigh;
       uniform float turbidity;
@@ -41,8 +40,6 @@ export default () => {
       varying vec3 vBetaR;
       varying vec3 vBetaM;
       varying float vSunE;
-
-      ${THREE.ShaderChunk.logdepthbuf_pars_vertex}
   
       const vec3 up = vec3( 0.0, 1.0, 0.0 );
   
@@ -94,20 +91,15 @@ export default () => {
   
         float rayleighCoefficient = rayleigh - ( 1.0 * ( 1.0 - vSunfade ) );
   
-      // extinction (absorbtion + out scattering)
-      // rayleigh coefficients
+        // extinction (absorbtion + out scattering)
+        // rayleigh coefficients
         vBetaR = totalRayleigh * rayleighCoefficient;
   
-      // mie coefficients
+        // mie coefficients
         vBetaM = totalMie( turbidity ) * mieCoefficient;
-
-        ${THREE.ShaderChunk.logdepthbuf_vertex}
-  
       }
     `,
-  
-    fragmentShader: 
-    `
+    fragmentShader: `\
       varying vec3 vWorldPosition;
       varying vec3 vSunDirection;
       varying float vSunfade;
@@ -118,8 +110,6 @@ export default () => {
       uniform float luminance;
       uniform float mieDirectionalG;
       uniform vec3 cameraPos;
-      
-      ${THREE.ShaderChunk.logdepthbuf_pars_fragment}
   
       // constants for atmospheric scattering
       const float pi = 3.141592653589793238462643383279502884197169;
@@ -163,19 +153,112 @@ export default () => {
       vec3 Uncharted2Tonemap( vec3 x ) {
         return ( ( x * ( A * x + C * B ) + D * E ) / ( x * ( A * x + B ) + D * F ) ) - E / F;
       }
+
+        
+
+
+      
+
+
+
+
+
+
+
+
+
+      // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+
+      // Return random noise in the range [0.0, 1.0], as a function of x.
+      float Noise2d( in vec2 x )
+      {
+          float xhash = cos( x.x * 37.0 );
+          float yhash = cos( x.y * 57.0 );
+          return fract( 415.92653 * ( xhash + yhash ) );
+      }
+
+      // Convert Noise2d() into a "star field" by stomping everthing below fThreshhold to zero.
+      float NoisyStarField( in vec2 vSamplePos, float fThreshhold )
+      {
+          float StarVal = Noise2d( vSamplePos );
+          if ( StarVal >= fThreshhold )
+              StarVal = pow( (StarVal - fThreshhold)/(1.0 - fThreshhold), 6.0 );
+          else
+              StarVal = 0.0;
+          return StarVal;
+      }
+
+      // Stabilize NoisyStarField() by only sampling at integer values.
+      float StableStarField( in vec2 vSamplePos, float fThreshhold )
+      {
+          // Linear interpolation between four samples.
+          // Note: This approach has some visual artifacts.
+          // There must be a better way to "anti alias" the star field.
+          float fractX = fract( vSamplePos.x );
+          float fractY = fract( vSamplePos.y );
+          vec2 floorSample = floor( vSamplePos );    
+          float v1 = NoisyStarField( floorSample, fThreshhold );
+          float v2 = NoisyStarField( floorSample + vec2( 0.0, 1.0 ), fThreshhold );
+          float v3 = NoisyStarField( floorSample + vec2( 1.0, 0.0 ), fThreshhold );
+          float v4 = NoisyStarField( floorSample + vec2( 1.0, 1.0 ), fThreshhold );
+
+          float StarVal =   v1 * ( 1.0 - fractX ) * ( 1.0 - fractY )
+                    + v2 * ( 1.0 - fractX ) * fractY
+                    + v3 * fractX * ( 1.0 - fractY )
+                    + v4 * fractX * fractY;
+        return StarVal;
+      }
+
+      void getNightColor( out vec3 fragColor, in vec2 fragCoord )
+      {
+        // Sky Background Color
+        vec3 vColor = vec3( 0.1, 0.2, 0.4 ) * fragCoord.y;
+
+        // Note: Choose fThreshhold in the range [0.99, 0.9999].
+        // Higher values (i.e., closer to one) yield a sparser starfield.
+        float StarFieldThreshhold = 0.97;
+
+        // Stars with a slow crawl.
+        float xRate = 0.;//0.2;
+        float yRate = 0.;//-0.06;
+        float iFrame = 0.;
+        vec2 vSamplePos = fragCoord.xy*1000. + vec2( xRate * float( iFrame ), yRate * float( iFrame ) );
+        float StarVal = StableStarField( vSamplePos, StarFieldThreshhold );
+        vColor += vec3( StarVal );
+        
+        fragColor = vColor;
+      }
+
+
+
+
+
+
+
+
+      
+
+
+
+
+
+
+
+
+
   
       void main() {
-      // optical length
-      // cutoff angle at 90 to avoid singularity in next formula.
+        // optical length
+        // cutoff angle at 90 to avoid singularity in next formula.
         float zenithAngle = acos( max( 0.0, dot( up, normalize( vWorldPosition - cameraPos ) ) ) );
         float inverse = 1.0 / ( cos( zenithAngle ) + 0.15 * pow( 93.885 - ( ( zenithAngle * 180.0 ) / pi ), -1.253 ) );
         float sR = rayleighZenithLength * inverse;
         float sM = mieZenithLength * inverse;
   
-      // combined extinction factor
+        // combined extinction factor
         vec3 Fex = exp( -( vBetaR * sR + vBetaM * sM ) );
   
-      // in scattering
+        // in scattering
         float cosTheta = dot( normalize( vWorldPosition - cameraPos ), vSunDirection );
   
         float rPhase = rayleighPhase( cosTheta * 0.5 + 0.5 );
@@ -187,14 +270,14 @@ export default () => {
         vec3 Lin = pow( vSunE * ( ( betaRTheta + betaMTheta ) / ( vBetaR + vBetaM ) ) * ( 1.0 - Fex ), vec3( 1.5 ) );
         Lin *= mix( vec3( 1.0 ), pow( vSunE * ( ( betaRTheta + betaMTheta ) / ( vBetaR + vBetaM ) ) * Fex, vec3( 1.0 / 2.0 ) ), clamp( pow( 1.0 - dot( up, vSunDirection ), 5.0 ), 0.0, 1.0 ) );
   
-      // nightsky
+        // nightsky
         vec3 direction = normalize( vWorldPosition - cameraPos );
         float theta = acos( direction.y ); // elevation --> y-axis, [-pi/2, pi/2]
         float phi = atan( direction.z, direction.x ); // azimuth --> x-axis [-pi/2, pi/2]
         vec2 uv = vec2( phi, theta ) / vec2( 2.0 * pi, pi ) + vec2( 0.5, 0.0 );
         vec3 L0 = vec3( 0.1 ) * Fex;
   
-      // composition + solar disc
+        // composition + solar disc
         float sundisk = smoothstep( sunAngularDiameterCos, sunAngularDiameterCos + 0.00002, cosTheta );
         L0 += ( vSunE * 19000.0 * Fex ) * sundisk;
   
@@ -204,16 +287,21 @@ export default () => {
         // vec3 color = texColor * whiteScale;
         vec3 color = texColor * 0.3;
   
-        vec3 retColor = pow( color, vec3( 1.0 / ( 1.2 + ( 1.2 * vSunfade ) ) ) );
-  
-        gl_FragColor = vec4( retColor, 1.0 );
-  
+        vec3 dayColor = pow( color, vec3( 1.0 / ( 1.2 + ( 1.2 * vSunfade ) ) ) );
         #if defined( TONE_MAPPING )
-          gl_FragColor.rgb = toneMapping( gl_FragColor.rgb );
+          dayColor.rgb = toneMapping( dayColor.rgb );
         #endif
 
-        ${THREE.ShaderChunk.logdepthbuf_fragment}
-      } `
+        vec3 nightColor;
+        float x = (phi + pi/2.)/pi;
+        float y = 1.-theta/pi*2.;
+        getNightColor(nightColor, vec2(x, y));
+
+        vec3 retColor = mix(nightColor, dayColor, min(max(vSunE / 150., 0.), 1.));
+        // vec3 retColor = dayColor;
+        gl_FragColor = vec4(retColor, 1.0);
+      }
+    `,
   });
   const o = new THREE.Mesh(sphereGeometry, material);
   // const startTime = Date.now();
@@ -239,7 +327,7 @@ export default () => {
     
     if (sunObjLightTracker) {
       _theta += _dayPassSpeed;
-      //_phi += _dayPassSpeed; // For day-night cycle
+      _phi += _dayPassSpeed; // For day-night cycle
 
       sunObjLightTracker.position.copy(app.position);
       sunObjLightTracker.updateMatrixWorld();
