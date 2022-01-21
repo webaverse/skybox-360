@@ -226,7 +226,7 @@ export default () => {
         float StarVal = StableStarField( vSamplePos, StarFieldThreshhold );
         vColor += vec3( StarVal );
 
-        vColor *= min(max(fragCoord.y, 0.), 1.);
+        vColor *= min(max(fragCoord.y + 0.1, 0.), 1.);
         
         fragColor = vColor;
       }
@@ -297,7 +297,9 @@ export default () => {
         vec3 nightColor;
         float x = (phi + pi/2.)/pi;
         float y = 1.-theta/pi*2.;
-        getNightColor(nightColor, vec2(x, y));
+        // vec2 nightUv = vec2(x * (1.-sin(y)), y);
+        vec2 nightUv = vec2(x, y);
+        getNightColor(nightColor, nightUv);
 
         vec3 retColor = mix(nightColor, dayColor, min(max(vSunE / 150., 0.), 1.));
         // vec3 retColor = dayColor;
