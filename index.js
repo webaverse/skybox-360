@@ -8,7 +8,7 @@ export default () => {
   const worldLights = world.getLights();
   const {renderer, camera} = useInternals();
 
-  let _phi = 160;
+  let _phi = 200;
   let _theta = 13;
   let _dayPassSpeed = 0.1;
   let sunObjLightTracker = null;
@@ -29,14 +29,17 @@ export default () => {
       cameraPos: {value: new THREE.Vector3(0, 10, 0)},
       iTime: {value: 0},
       iRotationAngle: {value: 0},
+      baseMatrix: {value: new THREE.Matrix4()},
     },
     vertexShader: `\
       uniform vec3 sunPosition;
       uniform float rayleigh;
       uniform float turbidity;
       uniform float mieCoefficient;
+      uniform mat4 baseMatrix;
   
       varying vec3 vWorldPosition;
+      varying vec3 vPosition;
       varying vec3 vSunDirection;
       varying float vSunfade;
       varying vec3 vBetaR;
@@ -82,6 +85,7 @@ export default () => {
   
         vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
         vWorldPosition = worldPosition.xyz;
+        vPosition = (baseMatrix * vec4(position, 1.)).xyz;
   
         gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
   
@@ -103,6 +107,7 @@ export default () => {
     `,
     fragmentShader: `\
       varying vec3 vWorldPosition;
+      varying vec3 vPosition;
       varying vec3 vSunDirection;
       varying float vSunfade;
       varying vec3 vBetaR;
@@ -229,23 +234,24 @@ export default () => {
         return (m * vec4(v, 1.0)).xyz;
       }
 
-      void getNightColor( out vec3 fragColor, in vec3 direction )
+      void getNightColor( out vec3 fragColor, in vec3 direction, in vec3 direction2 )
       {
-        // direction.y -= cos( iTime * 0.001 );
-        // direction.x += cos( iTime * 0.001 );
-
         float theta = acos( direction.y ); // elevation --> y-axis, [-pi/2, pi/2]
         float phi = atan( direction.z, direction.x ); // azimuth --> x-axis [-pi/2, pi/2]
         float x = (phi + pi/2.)/pi;
         float y = 1.-theta/pi*2.;
+        // vec2 nightUv = vec2(x, y);
 
-
-        vec3 direction2 = rotateVectorAxisAngle(direction, vec3(0.0, 0.0, 1.0), iRotationAngle);
         float theta2 = acos( direction2.y ); // elevation --> y-axis, [-pi/2, pi/2]
         float phi2 = atan( direction2.z, direction2.x ); // azimuth --> x-axis [-pi/2, pi/2]
         float x2 = (phi2 + pi/2.)/pi;
         float y2 = 1.-theta2/pi*2.;
         vec2 nightUv = vec2(x2, y2);
+
+        float theta3 = acos( -direction.y ); // elevation --> y-axis, [-pi/2, pi/2]
+        float phi3 = atan( -direction.z, -direction.x ); // azimuth --> x-axis [-pi/2, pi/2]
+        float x3 = (phi3 + pi/2.)/pi;
+        float y3 = 1.-theta3/pi*2.;
 
         // Sky Background Color
         vec3 vColor = vec3( 0.1, 0.2, 0.4 ) * y;
@@ -255,8 +261,8 @@ export default () => {
         float StarFieldThreshhold = 0.97;
 
         // Stars with a slow crawl.
-        float xRate = 0.;//0.2;
-        float yRate = 0.;//-0.06;
+        // float xRate = 0.;//0.2;
+        // float yRate = 0.;//-0.06;
         // float iFrame = 0.;
         vec2 vSamplePos = nightUv.xy*1000. /*+ vec2( xRate * float( iFrame ), yRate * float( iFrame ) )*/;
         
@@ -264,6 +270,13 @@ export default () => {
         vColor += vec3( StarVal );
 
         vColor *= min(max(y + 0.1, 0.), 1.);
+
+        // moon disk
+        float dist = length(-direction2 - vec3(0., 0, -1.));
+        // float cosTheta2 = dot(normalize(cameraPos - vWorldPosition), vec3(-direction2.x, -direction2.y, -direction2.z));
+        // float moonDisk = smoothstep(sunAngularDiameterCos,sunAngularDiameterCos+0.00002,cosTheta2);
+        float moonDisk = floor(min(max(1. - dist + 0.01, 0.), 1.));
+        vColor = mix(vColor, vec3(0.7), moonDisk);
         
         fragColor = vColor;
       }
@@ -311,6 +324,7 @@ export default () => {
   
         // nightsky
         vec3 direction = normalize( vWorldPosition - cameraPos );
+        vec3 direction2 = normalize( vPosition - cameraPos );
         float theta = acos( direction.y ); // elevation --> y-axis, [-pi/2, pi/2]
         float phi = atan( direction.z, direction.x ); // azimuth --> x-axis [-pi/2, pi/2]
         vec2 uv = vec2( phi, theta ) / vec2( 2.0 * pi, pi ) + vec2( 0.5, 0.0 );
@@ -332,17 +346,12 @@ export default () => {
         // #endif
 
         vec3 nightColor;
-        getNightColor(nightColor, direction);
+        getNightColor(nightColor, direction, direction2);
 
         float dayMix = min(max(vSunE / 150., 0.), 1.);
         float nightMix = 1. - dayMix;
         vec3 retColor = mix(nightColor, dayColor, dayMix);
         gl_FragColor = vec4(retColor, 1.0);
-
-        // moon disk
-        float cosTheta2 = dot(normalize(vWorldPosition - cameraPos), vec3(-vSunDirection.x, -vSunDirection.y, -vSunDirection.z));
-        float moonDisk = smoothstep(sunAngularDiameterCos,sunAngularDiameterCos+0.00002,cosTheta2);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb, vec3(0.7), moonDisk), nightMix);
       }
     `,
   });
@@ -368,8 +377,18 @@ export default () => {
     material.uniforms.sunPosition.value.copy(app.position);
     material.uniforms.cameraPos.value.copy(camera.position);
     material.uniforms.iTime.value = performance.now();
-    material.uniforms.iRotationAngle.value = _phi * Math.PI / 180;
-    
+    // material.uniforms.iRotationAngle.value = _phi * Math.PI / 180
+    o.position.set(0, 0, 0);
+    o.quaternion.setFromRotationMatrix(
+      new THREE.Matrix4().lookAt(
+        o.position,
+        app.position,
+        new THREE.Vector3(1, 0, 0).normalize(),
+      )
+    );
+    o.updateMatrixWorld();
+    material.uniforms.baseMatrix.value.compose(o.position, new THREE.Quaternion(), o.scale);
+
     if (sunObjLightTracker) {
       _theta += _dayPassSpeed;
       _phi += _dayPassSpeed; // For day-night cycle
