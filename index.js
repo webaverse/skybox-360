@@ -28,7 +28,7 @@ export default () => {
       sunPosition: {value: new THREE.Vector3(0, 100, 0)},
       cameraPos: {value: new THREE.Vector3(0, 10, 0)},
       iTime: {value: 0},
-      iRotationAngle: {value: 0},
+      // iRotationAngle: {value: 0},
       baseMatrix: {value: new THREE.Matrix4()},
     },
     vertexShader: `\
@@ -118,7 +118,7 @@ export default () => {
       uniform float mieDirectionalG;
       uniform vec3 cameraPos;
       uniform float iTime;
-      uniform float iRotationAngle;
+      // uniform float iRotationAngle;
   
       // constants for atmospheric scattering
       const float pi = 3.141592653589793238462643383279502884197169;
