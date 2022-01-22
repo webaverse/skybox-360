@@ -248,11 +248,6 @@ export default () => {
         float y2 = 1.-theta2/pi*2.;
         vec2 nightUv = vec2(x2, y2);
 
-        float theta3 = acos( -direction.y ); // elevation --> y-axis, [-pi/2, pi/2]
-        float phi3 = atan( -direction.z, -direction.x ); // azimuth --> x-axis [-pi/2, pi/2]
-        float x3 = (phi3 + pi/2.)/pi;
-        float y3 = 1.-theta3/pi*2.;
-
         // Sky Background Color
         vec3 vColor = vec3( 0.1, 0.2, 0.4 ) * y;
 
