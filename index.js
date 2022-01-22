@@ -315,7 +315,7 @@ export default () => {
         float phi = atan( direction.z, direction.x ); // azimuth --> x-axis [-pi/2, pi/2]
         vec2 uv = vec2( phi, theta ) / vec2( 2.0 * pi, pi ) + vec2( 0.5, 0.0 );
         vec3 L0 = vec3( 0.1 ) * Fex;
-  
+
         // composition + solar disc
         float sundisk = smoothstep( sunAngularDiameterCos, sunAngularDiameterCos + 0.00002, cosTheta );
         L0 += ( vSunE * 19000.0 * Fex ) * sundisk;
@@ -334,8 +334,15 @@ export default () => {
         vec3 nightColor;
         getNightColor(nightColor, direction);
 
-        vec3 retColor = mix(nightColor, dayColor, min(max(vSunE / 150., 0.), 1.));
+        float dayMix = min(max(vSunE / 150., 0.), 1.);
+        float nightMix = 1. - dayMix;
+        vec3 retColor = mix(nightColor, dayColor, dayMix);
         gl_FragColor = vec4(retColor, 1.0);
+
+        // moon disk
+        float cosTheta2 = dot(normalize(vWorldPosition - cameraPos), vec3(-vSunDirection.x, -vSunDirection.y, -vSunDirection.z));
+        float moonDisk = smoothstep(sunAngularDiameterCos,sunAngularDiameterCos+0.00002,cosTheta2);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(gl_FragColor.rgb, vec3(0.7), moonDisk), nightMix);
       }
     `,
   });
