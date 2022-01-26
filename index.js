@@ -10,7 +10,7 @@ export default () => {
 
   let _phi = 200;
   let _theta = 13;
-  let _dayPassSpeed = 0.1;
+  let _dayPassSpeed = 0.01;
   let sunObjLightTracker = null;
 
   const sphereGeometry = new THREE.SphereBufferGeometry(300)
@@ -353,7 +353,7 @@ export default () => {
   const o = new THREE.Mesh(sphereGeometry, material);
   // const startTime = Date.now();
   useFrame(() => {
-    const now = Date.now();
+    // const now = Date.now();
   
     const sunDistance = 100;
 
